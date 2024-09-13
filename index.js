@@ -40,18 +40,18 @@ app.post('/api/shorturl', (req, res, next) =>
   } else
   {
     let date = new Date();
-    let n = Number(date.getTime().toString().substring(3, 10));
+    let n = Number(date.getTime().toString().substring(4));
     let doc = new URL({
       original_url: fullurl,
       short_url: n
     });
     doc.save().then((data) =>
     {
-      console.log(data);
+      console.log(`saved: ${data}`);
       res.json({ "original_url": data.original_url, "short_url": data.short_url });
     }).catch((e) =>
     {
-      console.error(e);
+      console.error(`error saving new document ${e}`);
       res.json({ error: e.message });
     });
   }
