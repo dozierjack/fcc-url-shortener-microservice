@@ -49,7 +49,7 @@ app.post('/api/shorturl', (req, res, next) =>
       doc.save().then((data) =>
       {
         console.log(data);
-        res.json(doc);
+        res.json({ "original_url": data.original_url, "short_url": data.short_url });
       }).catch((e) =>
       {
         console.error(e);
