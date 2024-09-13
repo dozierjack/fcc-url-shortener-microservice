@@ -5,6 +5,7 @@ const app = express();
 const bodyParser = require('body-parser');
 const dns = require('dns');
 const mongoose = require('mongoose');
+const urlhttp = require('url-http')
 
 const URL = require('./url');
 
@@ -31,51 +32,54 @@ app.get('/api/hello', function(req, res) {
 
 app.post('/api/shorturl', (req, res, next) =>
 {
-  dns.lookup(req.body.url, (err, add, fam) =>
+  let fullurl = urlhttp(req.body.url.replace(/^(https?:\/\/)?/i, 'https://'));
+  if (!fullurl)
   {
-    if (err)
-    {
-      console.error(`${req.body.url} is an invalid url`);
+    console.error(`${req.body.url} is an invalid url (resolved to ${fullurl})`);
       res.json({ error: 'invalid url' });
-    } else
+  } else
+  {
+    let date = new Date();
+    let n = Number(date.getTime().toString().substring(3, 10));
+    let doc = new URL({
+      original_url: fullurl,
+      short_url: n
+    });
+    doc.save().then((data) =>
     {
-      let fullurl = req.body.url.replace(/^(https?:\/\/)?/i, 'https://');
-      let date = new Date();
-      let n = Number(date.getTime().toString().substring(3, 10));
-      let doc = new URL({
-        original_url: fullurl,
-        short_url: n
-      });
-      doc.save().then((data) =>
-      {
-        console.log(data);
-        res.json({ "original_url": data.original_url, "short_url": data.short_url });
-      }).catch((e) =>
-      {
-        console.error(e);
-        res.json({ error: e.message });
-      });
-    }
-  });
+      console.log(data);
+      res.json({ "original_url": data.original_url, "short_url": data.short_url });
+    }).catch((e) =>
+    {
+      console.error(e);
+      res.json({ error: e.message });
+    });
+  }
 });
 
 app.get('/api/shorturl/:short', (req, res, next) =>
 {
-  URL.findOne({ short_url: Number(req.params.short) }).then((doc) =>
+  if (Number(req.params.short).toString() == "NaN")
   {
-    if (doc == null)
-    {
-      res.json({ "error": "No short URL found for the given input" });
-    } else
-    {
-      console.log(`redirecting from ${doc.short_url} to ${doc.original_url}`);
-      res.redirect(doc.original_url);
-    }
-  }).catch((e) =>
+    res.json({ "error": "must provide a number to /api/shorturl/" });
+  } else
   {
-    console.error(e);
-    res.json({ "error": `failed returning original URL... error message: ${e.message}` });
-  });
+    URL.findOne({ short_url: Number(req.params.short) }).then((doc) =>
+    {
+      if (doc == null)
+      {
+        res.json({ "error": "No short URL found for the given input" });
+      } else
+      {
+        console.log(`redirecting from ${doc.short_url} to ${doc.original_url}`);
+        res.redirect(doc.original_url);
+      }
+    }).catch((e) =>
+    {
+      console.error(e);
+      res.json({ "error": `failed to return original URL... error message: ${e.message}` });
+    });
+  }
 })
 
 app.listen(port, function() {
